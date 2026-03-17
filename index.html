@@ -4,14 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RouteManager</title>
-
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<!-- Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-
 <style>
+@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 /* ══════════ VARIABLES ══════════ */
 :root {
   --blue:#0075C9; --blue-l:#1A8FE3;
@@ -208,7 +203,7 @@ body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:1
   <div class="rm-logo">
     <div class="rm-logo-icon">🗺️</div>
     <span class="rm-logo-text">RouteManager</span>
-    <span class="rm-logo-ver">v3.1</span>
+    <span class="rm-logo-ver">v3.2</span>
   </div>
   <div class="hdr-status">
     <div class="status-dot" id="hdr-dot"></div>
@@ -363,11 +358,35 @@ body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:1
 <!-- ══════════ TOAST ══════════ -->
 <div id="rm-toast"></div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
 'use strict';
+
+/* ══════════════════════════════════════
+   INYECTAR LEAFLET DINÁMICAMENTE
+   (el <head> es ignorado por Geotab add-ins normales)
+══════════════════════════════════════ */
+function loadLeaflet(cb){
+  // CSS
+  if(!document.querySelector('link[href*="leaflet"]')){
+    const lnk = document.createElement('link');
+    lnk.rel='stylesheet';
+    lnk.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(lnk);
+  }
+  // Fuentes Google
+  if(!document.querySelector('link[href*="googleapis"]')){
+    const f = document.createElement('link');
+    f.rel='stylesheet';
+    f.href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap';
+    document.head.appendChild(f);
+  }
+  // JS de Leaflet
+  if(window.L){ cb(); return; }
+  const s = document.createElement('script');
+  s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload = cb;
+  document.head.appendChild(s);
+}
 
 /* ══════════════════════════════════════
    ESTADO
@@ -438,26 +457,27 @@ function toast(msg, type='info'){
    LEAFLET MAP
 ══════════════════════════════════════ */
 function initMap(){
-  // Asegurarse de que el contenedor tenga dimensiones antes de inicializar Leaflet
   const mapEl = document.getElementById('rm-map');
   const mapWrap = document.querySelector('.rm-map-wrap');
-
-  // Calcular altura disponible: viewport - header(52px) - tabs(44px)
   const availH = window.innerHeight - 96;
   mapWrap.style.height = availH + 'px';
   mapEl.style.height = availH + 'px';
 
-  S.map = L.map('rm-map', { zoomControl:true, attributionControl:true });
+  S.map = L.map('rm-map', {
+    zoomControl: true,
+    attributionControl: true,
+    doubleClickZoom: false,   // ← Desactiva zoom con doble clic
+    scrollWheelZoom: true,
+  });
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom:19, attribution:'© <a href="https://openstreetmap.org">OSM</a>'
   }).addTo(S.map);
   S.map.setView([-38.9516, -68.0591], 13);
 
-  // Forzar re-render del mapa después de que el DOM esté estable
   setTimeout(()=>{ S.map.invalidateSize(); }, 100);
   setTimeout(()=>{ S.map.invalidateSize(); }, 500);
 
-  // Recalcular al redimensionar ventana
   window.addEventListener('resize', ()=>{
     const h = window.innerHeight - 96;
     mapWrap.style.height = h + 'px';
@@ -465,15 +485,20 @@ function initMap(){
     S.map.invalidateSize();
   });
 
-  // Clic en el mapa → agregar parada (solo en tab Asignar)
+  // Clic simple en el mapa → agregar parada solo en tab Asignar
+  // Usamos un timer para distinguir clic simple de doble clic
+  let clickTimer = null;
   S.map.on('click', e => {
-    const tabAssign = document.getElementById('tab-assign');
-    if(!tabAssign.classList.contains('active')) return;
-    const {lat, lng} = e.latlng;
-    const name = `Parada ${S.waypoints.length + 1}`;
-    S.waypoints.push({name, lat, lon:lng, dwell:10, status:'pending'});
-    renderWpList();
-    toast(`📍 ${name} agregada`, 'success');
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+      const tabAssign = document.getElementById('tab-assign');
+      if(!tabAssign.classList.contains('active')) return;
+      const {lat, lng} = e.latlng;
+      const name = `Parada ${S.waypoints.length + 1}`;
+      S.waypoints.push({name, lat, lon:lng, dwell:10, status:'pending'});
+      renderWpList();
+      toast(`📍 ${name} agregada`, 'success');
+    }, 250);
   });
 }
 
@@ -982,8 +1007,12 @@ function setHdrStatus(type, txt){
 ══════════════════════════════════════ */
 geotab.addin.RouteManager = function(api, state){
   S.api = api;
-  initMap();
-  setHdrStatus('green','Conectado');
+
+  // Cargar Leaflet dinámicamente (el <head> es ignorado en add-ins normales de Geotab)
+  loadLeaflet(() => {
+    initMap();
+    setHdrStatus('green','Conectado');
+  });
 
   // Cargar vehículos
   api.call('Get',{typeName:'Device',resultsLimit:500}, devices=>{
