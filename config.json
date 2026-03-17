@@ -1,19 +1,13 @@
 {
-  "name": "RouteManager",
-  "supportEmail": "soporte@routemanager.com",
-  "version": "1.0.0",
-  "items": [
-    {
-      "page": "map",
-      "title": "Route Manager",
-      "noView": false,
-      "menuName": {
-        "en": "Route Manager",
-        "es": "Gestión de Rutas"
-      },
-      "icon": "https://raw.githubusercontent.com/your-org/route-manager/main/icon.svg",
-      "url": "addin/RouteManager/index.html"
-    }
-  ],
-  "isSigned": false
+    "name": "RouteManager",
+    "supportEmail": "soporte@routemanager.com",
+    "version": "1.0.0",
+    "items": [
+        {
+            "url": "https://mtoros14.github.io/routemanager/index.html",
+            "menuName": "Route Manager",
+            "icon": "https://raw.githubusercontent.com/your-org/route-manager/main/icon.svg"
+        }
+    ],
+    "isSigned": false
 }
