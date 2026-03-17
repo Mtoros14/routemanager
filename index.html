@@ -7,7 +7,6 @@
 
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css">
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -26,7 +25,8 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:13px;line-height:1.5;display:flex;flex-direction:column}
+body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:13px;line-height:1.5}
+#rm-root{display:flex;flex-direction:column;width:100%;height:100vh;overflow:hidden;background:var(--navy);color:var(--text-1);font-family:var(--f);font-size:13px;line-height:1.5}
 
 /* ══════════ HEADER ══════════ */
 .rm-header{background:linear-gradient(135deg,var(--navy-2),#0d243b);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
@@ -52,16 +52,16 @@ body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:1
 @keyframes tabPulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* ══════════ LAYOUT PRINCIPAL ══════════ */
-.rm-body{flex:1;display:grid;grid-template-columns:340px 1fr;overflow:hidden;min-height:0}
+.rm-body{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 96px);overflow:hidden}
 
 /* ══════════ SIDEBAR ══════════ */
 .rm-sidebar{overflow-y:auto;background:var(--navy-2);border-right:1px solid var(--border);display:flex;flex-direction:column}
-.tab-panel{display:none;flex-direction:column;flex:1;padding:14px;gap:12px}
+.tab-panel{display:none;flex-direction:column;flex:1;padding:14px;gap:12px;overflow-y:auto}
 .tab-panel.active{display:flex}
 
 /* ══════════ MAPA ══════════ */
-.rm-map-wrap{position:relative;flex:1;min-width:0}
-#rm-map{width:100%;height:100%}
+.rm-map-wrap{position:relative;min-width:0;overflow:hidden}
+#rm-map{width:100%;height:100%;min-height:400px}
 .map-legend{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,27,45,0.92);border:1px solid var(--navy-4);border-radius:var(--r);padding:7px 14px;display:flex;gap:16px;font-size:11px;color:var(--text-2);z-index:1000;backdrop-filter:blur(6px);pointer-events:none}
 .leg-item{display:flex;align-items:center;gap:5px}
 .leg-dot{width:10px;height:10px;border-radius:50%}
@@ -201,6 +201,7 @@ body{font-family:var(--f);background:var(--navy);color:var(--text-1);font-size:1
 </style>
 </head>
 <body>
+<div id="rm-root">
 
 <!-- ══════════ HEADER ══════════ -->
 <header class="rm-header">
@@ -437,13 +438,32 @@ function toast(msg, type='info'){
    LEAFLET MAP
 ══════════════════════════════════════ */
 function initMap(){
-  S.map = L.map('rm-map', { zoomControl:true, attributionControl:false });
+  // Asegurarse de que el contenedor tenga dimensiones antes de inicializar Leaflet
+  const mapEl = document.getElementById('rm-map');
+  const mapWrap = document.querySelector('.rm-map-wrap');
+
+  // Calcular altura disponible: viewport - header(52px) - tabs(44px)
+  const availH = window.innerHeight - 96;
+  mapWrap.style.height = availH + 'px';
+  mapEl.style.height = availH + 'px';
+
+  S.map = L.map('rm-map', { zoomControl:true, attributionControl:true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'© OpenStreetMap'
+    maxZoom:19, attribution:'© <a href="https://openstreetmap.org">OSM</a>'
   }).addTo(S.map);
-  // Atribución mínima
-  L.control.attribution({prefix:false}).addTo(S.map);
   S.map.setView([-38.9516, -68.0591], 13);
+
+  // Forzar re-render del mapa después de que el DOM esté estable
+  setTimeout(()=>{ S.map.invalidateSize(); }, 100);
+  setTimeout(()=>{ S.map.invalidateSize(); }, 500);
+
+  // Recalcular al redimensionar ventana
+  window.addEventListener('resize', ()=>{
+    const h = window.innerHeight - 96;
+    mapWrap.style.height = h + 'px';
+    mapEl.style.height = h + 'px';
+    S.map.invalidateSize();
+  });
 
   // Clic en el mapa → agregar parada (solo en tab Asignar)
   S.map.on('click', e => {
@@ -986,5 +1006,6 @@ geotab.addin.RouteManager = function(api, state){
   updateAlertBadge();
 };
 </script>
+</div><!-- /rm-root -->
 </body>
 </html>
