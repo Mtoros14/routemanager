@@ -1,0 +1,19 @@
+{
+  "name": "RouteManager",
+  "supportEmail": "soporte@routemanager.com",
+  "version": "1.0.0",
+  "items": [
+    {
+      "page": "map",
+      "title": "Route Manager",
+      "noView": false,
+      "menuName": {
+        "en": "Route Manager",
+        "es": "Gestión de Rutas"
+      },
+      "icon": "https://raw.githubusercontent.com/your-org/route-manager/main/icon.svg",
+      "url": "addin/RouteManager/index.html"
+    }
+  ],
+  "isSigned": false
+}
